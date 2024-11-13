@@ -1,0 +1,110 @@
+use_iptables="2";
+uselist="1";
+dpi_list_path="/data/adb/zapret";
+dpi_list="DPI_list.txt";
+
+if ! [ -d "$dpi_list_path" ]; then
+    echo "Creating directory for zapret...";
+    mkdir -p "$dpi_list_path";
+	cat > "$dpi_list_path/$dpi_list" << EOL
+rutracker.org
+ntc.party
+prostovpn.org
+discord.com
+discord.gg
+discordapp.com
+discordapp.net
+discord.app
+discord.media
+discordcdn.com
+discord.dev
+discord.new
+discord.gift
+discordstatus.com
+dis.gd
+discord.co
+discord-attachments-uploads-prd.storage.googleapis.com
+EOL
+fi;
+
+
+
+dpi_ignore="DPI_ignore.txt";
+nftname="inet zapret"; iptname="mangle";
+
+if [ "$1" == "start" ]; then echo "Starting zapret..."; 
+
+if [ "$uselist" == "1" ]; then echo "Using auto hostlist";
+if ! [ -e "$dpi_list_path/$dpi_ignore" ]; then echo -n "" > "$dpi_list_path/$dpi_ignore"; chmod 666 "$dpi_list_path/$dpi_ignore"; fi;
+autohostlist="--hostlist-auto=$dpi_list_path/$dpi_list --hostlist-exclude=$dpi_list_path/$dpi_ignore"; else autohostlist=""; fi
+
+DesyncHTTP="--filter-tcp=80,8000 --wssize=1:6 --dpi-desync=split --dpi-desync-fooling=md5sig,badsum --dpi-desync-ttl=0 $autohostlist";
+
+Desync1="--new --filter-tcp=443 --wssize=1:6 --dpi-desync=fake --dpi-desync-repeats=2 --dpi-desync-autottl=2 --dpi-desync-fake-tls=0x16030102 --hostlist=/etc/list-youtube.txt";
+Desync2="--new --filter-udp=50000-50099 --dpi-desync=fake --dpi-desync-any-protocol --dpi-desync-fake-quic=0xC30000000108";
+
+
+DesyncHTTPS="--new --filter-tcp=443 --wssize=1:6 --dpi-desync=disorder2 $autohostlist";
+DesyncQUIC="--new --filter-udp=443 --dpi-desync=fake --dpi-desync-repeats=6 $autohostlist";
+
+Desync="$(echo $DesyncHTTP $Desync1 $Desync2 $Desync3 $Desync4 $Desync5 $DesyncHTTPS $DesyncQUIC | sed 's/  / /g')";
+
+if [ -n "$2" ]; then iface=$2; echo "Starting for interface $iface"; 
+if [ "$use_iptables" == "0" ]; then iifnm="iifname $iface"; oifnm="oifname $iface";
+else iifnm="-i $iface"; oifnm="-o $iface"; fi;
+else iifnm=""; oifnm=""; echo "Starting for all interfaces"; fi; 
+
+if [ "$uselist" == "1" ]; then sysctl net.netfilter.nf_conntrack_tcp_be_liberal=1 > /dev/null; fi; 
+if [[ "$(echo $Desync | grep -c badsum)" != "0" ]]; then sysctl net.netfilter.nf_conntrack_checksum=0 > /dev/null; fi;
+
+tcp_ports="$(echo $Desync | grep -oE 'filter-tcp=[0-9,-]+' | sed -e 's/.*=//g' -e 's/,/\n/g' -e 's/ /,/g' | sort -un)";
+udp_ports="$(echo $Desync | grep -oE 'filter-udp=[0-9,-]+' | sed -e 's/.*=//g' -e 's/,/\n/g' -e 's/ /,/g' | sort -un)";
+
+cbOrig="-m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:12 -m mark ! --mark 0x40000000/0x40000000";
+cbReply="-m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes 1:6 -m mark ! --mark 0x40000000/0x40000000";
+
+iptAdd() {
+if [[ "$use_iptables" == "3" ]]; then cbOrig=""; cbReply=""; fi; #If bad iptables
+if [[ "$use_iptables" == "1" ]]; then echo "Using full iptables for $1";
+iptDPort="-m multiport --dports $(echo $2 | sed -e 's/ /,/g' -e 's/-/:/g')";
+iptSPort="-m multiport --sports $(echo $2 | sed -e 's/ /,/g' -e 's/-/:/g')";
+else iptDPort="--dport $2"; iptSPort="--sport $2"; fi
+iptables -t $iptname -I POSTROUTING $oifnm -p $1 $iptDPort $cbOrig -j NFQUEUE --queue-num 200 --queue-bypass;
+if [ "$uselist" == "1" ]; then iptables -t $iptname -I PREROUTING $iifnm -p $1 $iptSPort $cbReply -j NFQUEUE --queue-num 200 --queue-bypass; fi;
+}
+
+iptMultiPort() {
+if [[ $use_iptables == "1" ]]; then iptAdd "$1" "$2";
+else for current_port in $2; do
+if [[ $current_port == *-* ]]; then for i in $(seq ${current_port%-*} ${current_port#*-}); do iptAdd "$1" "$i"; done 
+else iptAdd "$1" "$current_port"; fi; done; fi;
+}
+
+if [[ "$use_iptables" == "0" ]]; then echo "Using nftables";
+nft create table $nftname; 
+nft add chain $nftname post "{type filter hook postrouting priority mangle;}";
+nft add rule $nftname post meta mark and 0x40000000 == 0 $oifnm tcp dport "{ $(echo $tcp_ports | sed 's/ /,/g') }" ct original packets 1-12 queue num 200 bypass;
+nft add rule $nftname post meta mark and 0x40000000 == 0 $oifnm udp dport "{ $(echo $udp_ports | sed 's/ /,/g') }" ct original packets 1-12 queue num 200 bypass;
+if [[ "$uselist" == "1" ]]; then 
+nft add chain $nftname pre "{type filter hook prerouting priority filter;}";
+nft add rule $nftname pre $iifnm tcp sport "{ $(echo $tcp_ports | sed 's/ /,/g') }" ct reply packets 1-3 queue num 200 bypass;
+nft add rule $nftname pre $iifnm udp sport "{ $(echo $udp_ports | sed 's/ /,/g') }" ct reply packets 1-3 queue num 200 bypass;
+fi; else iptMultiPort "tcp" "$tcp_ports"; iptMultiPort "udp" "$udp_ports"; fi;
+
+nfqws --uid=0:0 --qnum=200 $Desync > /dev/null & 
+echo "zapret service enabled"; return 0; fi
+
+if [ "$1" == "stop" ]; then
+if [[ $use_iptables == "0" ]]; then nft delete table $nftname; 
+else iptables -t $iptname -F PREROUTING; iptables -t $iptname -F POSTROUTING; fi; 
+kill "$(pidof nfqws)";
+echo "zapret service disabled"; return 0; fi;
+
+
+if [ -z "$1" ]; then
+echo " Usage zapret service: "; 
+echo "$(basename $0) start - Run zapret for all interfaces";
+echo "$(basename $0) start interface - Run zapret for custom interface"; 
+echo "$(basename $0) stop - Stop zapret and remove tables rules"; 
+echo "";
+echo " zapret service based on bol-van/zapret/nfqws"; fi; 
