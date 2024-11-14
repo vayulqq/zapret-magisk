@@ -1,6 +1,6 @@
 # Magisk модуль с zapret
 
-## Скачать тут: https://github.com/ImMALWARE/zapret-magisk/releases/download/1/zapret_module.zip
+## Скачать тут: https://github.com/ImMALWARE/zapret-magisk/releases/download/2/zapret_module.zip
 
 ## Установите модуль, перезагрузитесь, как обычно. **zapret** будет запущен автоматически. YouTube и Discord (с голосовыми чатами) должны работать корректно.
 
@@ -18,8 +18,3 @@ su -c rm /data/adb/modules/zapret/autostart
 ```sh
 su -c zapret start
 ```
-
-# Если что-то не работает.
-Первый вариант: открываем файловый менеджер, переходим по пути /data/adb/modules/zapret/system/xbin/, открываем "zapret" как текстовый файл, в самой первой строчке меняем 2 на 3, перезагружаемся.
-
-Второй вариант - для Samsung: открываем файловый менеджер, переходим по пути /data/adb/modules/zapret/system, переименовываем папку xbin в bin. Перезагружаемся.
