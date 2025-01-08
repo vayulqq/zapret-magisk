@@ -8,7 +8,7 @@ case "$arch" in
     "i386"|"i686")
         nfqws="nfqws_x86"
         ;;
-    "armv7l"|"arm")
+    "armv7l"|"arm"|"armv8l")
         nfqws="nfqws_arm32"
         ;;
     "aarch64")
