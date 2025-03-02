@@ -122,5 +122,11 @@ iptables -t mangle -F PREROUTING; iptables -t mangle -F POSTROUTING;
 kill "$(pidof $nfqws)";
 echo "zapret service stopped!"; return 0; fi;
 
+if [ "$1" == "autostart-on" ]; then
+sed -i 's/AUTOSTART="false"/AUTOSTART="true"/1' "/data/adb/modules/zapret/service.sh"; fi;
+
+if [ "$1" == "autostart-off" ]; then
+sed -i 's/AUTOSTART="true"/AUTOSTART="false"/1' "/data/adb/modules/zapret/service.sh"; fi;
+
 if [ -z "$1" ]; then
 echo "Usage: zapret start or zapret stop. Based on https://github.com/bol-van/zapret/nfqws"; fi;
