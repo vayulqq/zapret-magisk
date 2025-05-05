@@ -1,6 +1,6 @@
 # Magisk модуль с zapret
 
-## Скачать тут: https://github.com/ImMALWARE/zapret-magisk/releases/download/5/zapret_module.zip
+## Скачать тут: https://github.com/ImMALWARE/zapret-magisk/releases/download/6/zapret_module.zip
 
 ## Установите модуль, перезагрузитесь, как обычно. **zapret** будет запущен автоматически. Все сайты должны работать корректно.
 
