@@ -132,7 +132,7 @@ async function toggleAutostart(checked) {
     } else {
       await exec(`rm -f "${autostartPath}"`);
     }
-    showStatus("Флаг автозапуска обновлён.");
+    showStatus("Флаг автозапуска обновлён");
   } catch (e) {
     showStatus(`Ошибка автозапуска: ${e}`, "red");
   }
