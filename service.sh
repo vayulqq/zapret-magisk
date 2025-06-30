@@ -1,5 +1,5 @@
 #!/system/bin/sh
 
-if [ -f /data/adb/modules/zapret/autostart ]; then
+if [ -f /data/adb/zapret/autostart ]; then
     su -c "zapret start"
 fi

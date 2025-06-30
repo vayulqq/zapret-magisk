@@ -1,48 +1,58 @@
+#!/system/bin/sh
+
+
+ui_print "Копирование nfqws для $ARCH"
+case "$ARCH" in
+    arm64)   cp -af "$MODPATH/common/nfqws_arm64" "$MODPATH/system/bin/nfqws";;
+    arm)     cp -af "$MODPATH/common/nfqws_arm" "$MODPATH/system/bin/nfqws";;
+    x86)     cp -af "$MODPATH/common/nfqws_x86" "$MODPATH/system/bin/nfqws";;
+    x64)     cp -af "$MODPATH/common/nfqws_x64" "$MODPATH/system/bin/nfqws";;
+esac
+rm -rf "$MODPATH/common"
+chmod 755 "$MODPATH/system/bin/nfqws"
+
 if ! [ -d "/data/adb/zapret" ]; then
-    echo "Creating directory for zapret...";
+    ui_print "Создаю директорию для zapret";
     mkdir -p "/data/adb/zapret";
 fi;
 
-cat > "/data/adb/zapret/DPI_list.txt" << EOL
+ui_print "Заполняю autohosts.txt, ignore.txt, config.txt"
+
+cat > "/data/adb/zapret/autohosts.txt" << EOL
 7tv.app
-adtidy.org
 amnezia.org
 ampproject.org
 appspot.com
 avira.com
 botnadzor.org
-bsky.app
 cdninstagram.com
 censorship.no
 censortracker.org
 cloudflare-ech.com
-cloudflareclient.com
 conversations.im
-cpuid.com
 discord-attachments-uploads-prd.storage.googleapis.com
 discord.com
 discord.gg
 discord.media
 discordapp.com
 discordapp.net
+engage.cloudflareclient.com
 facebook.com
 fbcdn.net
 fbsbx.com
 ficbook.net
 files.catbox.moe
-gentoo.org
+gekkk.co
 ggpht.com
 godaddy.com
 googlevideo.com
+imagedelivery.net
 instagram.com
 jnn-pa.googleapis.com
 jut.su
 linkedin.com
 linktr.ee
 lolz.guru
-looking.house
-malw.lol
-malw.ru
 matrix.org
 matrix.to
 medium.com
@@ -59,24 +69,25 @@ prnt.sc
 proton.me
 protonmail.com
 protonvpn.com
+psiphon.ca
 quora.com
 rentry.co
+rentry.org
 riseup.net
 roskomsvoboda.org
-rustdesk.com
 rutracker.org
 signal.org
 soundcloud.com
 t.co
 te-st.org
-tomshardware.com
 torproject.org
 twimg.com
 twitter.com
+ulta.team
 vector.im
 viber.com
-vivaldistatus.com
 wide-youtube.l.google.com
+windscribe.com
 wixmp.com
 x.com
 youtu.be
@@ -93,36 +104,32 @@ zelenka.guru
 znanija.com
 
 EOL
-chmod 666 "/data/adb/zapret/DPI_list.txt";
+chmod 666 "/data/adb/zapret/autohosts.txt";
 
-cat > "/data/adb/zapret/DPI_ignore.txt" << EOL
-4pda.to
+cat > "/data/adb/zapret/ignore.txt" << EOL
 accounts.google.com
 ajax.googleapis.com
 android.googleapis.com
 blum.codes
-cloudflare-dns.com
 connectivitycheck.gstatic.com
-dns.google
 firefox.com
 fonts.googleapis.com
 fonts.gstatic.com
 github.com
 githubusercontent.com
 googlesyndication.com
+gosuslugi.ru
 mi.com
-doubleclick.net
 mozilla.com
 mozilla.net
 mozilla.org
-nztcdn.com
+sberbank.ru
 steamstatic.com
 t2.ru
 tele2.ru
 tonhub.com
 userapi.com
 vivaldi.com
-vivaldi.net
 vk.com
 vtb.ru
 www.google.com
@@ -132,4 +139,16 @@ xiaomi.com
 xiaomi.net
 
 EOL
-chmod 666 "/data/adb/zapret/DPI_ignore.txt";
+chmod 666 "/data/adb/zapret/ignore.txt";
+
+cat > "/data/adb/zapret/config.txt" << EOL
+--filter-udp=443 --hostlist={hosts} --hostlist-exclude={ignore} --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic={quicgoogle} --new 
+--filter-udp=50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-repeats=6 --new 
+--filter-tcp=80 --hostlist-auto={hosts} --hostlist-exclude={ignore} --dpi-desync=fake,split2 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig --new 
+--filter-tcp=443 --hostlist-auto={hosts} --hostlist-exclude={ignore} --dpi-desync=split2 --dpi-desync-split-seqovl=652 --dpi-desync-split-pos=2 --dpi-desync-split-seqovl-pattern={tlsgoogle}
+EOL
+chmod 666 "/data/adb/zapret/config.txt";
+
+touch "/data/adb/zapret/autostart"
+
+ui_print "Прочитайте гайд на https://wiki.malw.link/w/zapret"

@@ -1,29 +1,8 @@
 #!/system/bin/sh
-arch=$(uname -m)
 
-case "$arch" in
-    "x86_64")
-        nfqws="nfqws_x86_64"
-        ;;
-    "i386"|"i686")
-        nfqws="nfqws_x86"
-        ;;
-    "armv7l"|"arm"|"armv8l")
-        nfqws="nfqws_arm32"
-        ;;
-    "aarch64")
-        nfqws="nfqws_arm64"
-        ;;
-    *)
-        echo "Unknown arch: $arch"
-        exit 1
-        ;;
-esac
-
-pidof "$nfqws" > /dev/null && echo "zapret is running" || echo "zapret is not running"
+pidof "nfqws" > /dev/null && echo "zapret is running" || echo "zapret is not running"
 
 if [ "$1" == "start" ]; then
-
     check_iptables_support() {
         if iptables -t mangle -A POSTROUTING -p tcp -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:12 -j ACCEPT 2>/dev/null; then
             iptables -t mangle -D POSTROUTING -p tcp -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:12 -j ACCEPT 2>/dev/null
@@ -34,12 +13,20 @@ if [ "$1" == "start" ]; then
     }
     use_iptables=$(check_iptables_support)
 
-    echo "Starting zapret..."; 
-    hostlist="--hostlist-auto=/data/adb/zapret/DPI_list.txt --hostlist-exclude=/data/adb/zapret/DPI_ignore.txt";
-    config="--filter-udp=443 $hostlist --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=/etc/quic_initial_www_google_com.bin --new";
-    config="$config --filter-udp=50000-50099 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-repeats=6 --new";
-    config="$config --filter-tcp=80 $hostlist --dpi-desync=fake,split2 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig --new";
-    config="$config --filter-tcp=443 $hostlist --dpi-desync=fake,split --dpi-desync-autottl=5 --dpi-desync-repeats=6 --dpi-desync-fooling=badseq --dpi-desync-fake-tls=/etc/tls_clienthello_www_google_com.bin";
+    echo "Starting zapret...";
+
+    args=""
+
+    while IFS= read -r line; do
+        line="${line//\{hosts\}/"/data/adb/zapret/autohosts.txt"}"
+        line="${line//\{ignore\}/"/data/adb/zapret/ignore.txt"}"
+        line="${line//\{youtube\}/"/etc/youtube.txt"}"
+        line="${line//\{quicgoogle\}/"/etc/quic_initial_www_google_com.bin"}"
+        line="${line//\{tlsgoogle\}/"/etc/tls_clienthello_www_google_com.bin"}"
+        line="$(echo "$line" | sed -E 's/--wf-(tcp|udp)=[^ ]+//g')"
+        line="$(echo "$line" | sed -E 's/  +/ /g' | sed -E 's/^ //;s/ $//')"
+        args+=" $line"
+    done < /data/adb/zapret/config.txt
 
     sysctl net.netfilter.nf_conntrack_tcp_be_liberal=1 > /dev/null;
     cbOrig="-m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:12 -m mark ! --mark 0x40000000/0x40000000";
@@ -64,24 +51,30 @@ if [ "$1" == "start" ]; then
         done
     }
 
-    tcp_ports="$(echo $config | grep -oE 'filter-tcp=[0-9,-]+' | sed -e 's/.*=//g' -e 's/,/\n/g' -e 's/ /,/g' | sort -un)";
-    udp_ports="$(echo $config | grep -oE 'filter-udp=[0-9,-]+' | sed -e 's/.*=//g' -e 's/,/\n/g' -e 's/ /,/g' | sort -un)";
+    tcp_ports="$(echo $args | grep -oE 'filter-tcp=[0-9,-]+' | sed -e 's/.*=//g' -e 's/,/\n/g' -e 's/ /,/g' | sort -un)";
+    udp_ports="$(echo $args | grep -oE 'filter-udp=[0-9,-]+' | sed -e 's/.*=//g' -e 's/,/\n/g' -e 's/ /,/g' | sort -un)";
     iptMultiPort "tcp" "$tcp_ports";
     iptMultiPort "udp" "$udp_ports";
 
-    $nfqws --uid=0:0 --qnum=200 $config > /dev/null & 
+    nfqws --uid=0:0 --qnum=200 $args > /dev/null & 
     echo "zapret service started!"; return 0; fi
 
 if [ "$1" == "stop" ]; then
-iptables -t mangle -F PREROUTING; iptables -t mangle -F POSTROUTING;
-kill "$(pidof $nfqws)";
-echo "zapret service stopped!"; return 0; fi;
+    iptables -t mangle -F PREROUTING; iptables -t mangle -F POSTROUTING;
+    kill "$(pidof nfqws)";
+    echo "zapret service stopped!"; return 0;
+fi;
 
 if [ "$1" == "autostart-on" ]; then
-touch /data/adb/modules/zapret/autostart; fi;
+    touch /data/adb/zapret/autostart;
+    echo "Autostart enabled"
+fi;
 
 if [ "$1" == "autostart-off" ]; then
-rm /data/adb/modules/zapret/autostart; fi;
+    rm /data/adb/zapret/autostart;
+    echo "Autostart disabled"
+fi;
 
 if [ -z "$1" ]; then
-echo "Usage: zapret start, zapret stop, zapret autostart-on, zapret autostart-off. Based on https://github.com/bol-van/zapret/nfqws"; fi;
+    echo "zapret for Magisk. Source: https://github.com/bol-van/zapret. Build: https://github.com/ImMALWARE/zapret-magisk. Usage: zapret start, zapret stop, zapret autostart-on, zapret autostart-off.";
+fi;
