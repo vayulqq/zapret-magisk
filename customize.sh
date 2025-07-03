@@ -1,12 +1,16 @@
 #!/system/bin/sh
 
 
-ui_print "Копирование nfqws для $ARCH"
+ui_print "Копирование nfqws и curl для $ARCH"
 case "$ARCH" in
-    arm64)   cp -af "$MODPATH/common/nfqws_arm64" "$MODPATH/system/bin/nfqws";;
-    arm)     cp -af "$MODPATH/common/nfqws_arm" "$MODPATH/system/bin/nfqws";;
-    x86)     cp -af "$MODPATH/common/nfqws_x86" "$MODPATH/system/bin/nfqws";;
-    x64)     cp -af "$MODPATH/common/nfqws_x64" "$MODPATH/system/bin/nfqws";;
+    arm64)   cp -af "$MODPATH/common/nfqws_arm64" "$MODPATH/system/bin/nfqws"
+             cp -af "$MODPATH/common/curl_arm64" "$MODPATH/system/bin/curl";;
+    arm)     cp -af "$MODPATH/common/nfqws_arm" "$MODPATH/system/bin/nfqws"
+             cp -af "$MODPATH/common/curl_arm" "$MODPATH/system/bin/curl";;
+    x86)     cp -af "$MODPATH/common/nfqws_x86" "$MODPATH/system/bin/nfqws"
+             cp -af "$MODPATH/common/curl_x86" "$MODPATH/system/bin/curl";;
+    x64)     cp -af "$MODPATH/common/nfqws_x64" "$MODPATH/system/bin/nfqws"
+             cp -af "$MODPATH/common/curl_x64" "$MODPATH/system/bin/curl";;
 esac
 rm -rf "$MODPATH/common"
 chmod 755 "$MODPATH/system/bin/nfqws"
